@@ -1,0 +1,34 @@
+{
+  "agent_name": "Life Coach Chat Agent",
+  "agent_id": "699f59be87c8da309e64d88e",
+  "description": "Conversational AI life coach that users chat with to discuss any life area, get personalized plans, set goals, receive motivational guidance, and ask questions about improving specific domains.",
+  "agent_type": "json",
+  "accessor": "result",
+  "auto_generated": true,
+  "response_schema": {
+    "message": "string",
+    "action_items": [
+      {
+        "task": "string",
+        "domain": "string",
+        "timeframe": "string"
+      }
+    ],
+    "suggested_followups": [
+      "string"
+    ]
+  },
+  "example_response": {
+    "message": "The coach's conversational response",
+    "action_items": [
+      {
+        "task": "sample string",
+        "domain": "sample string",
+        "timeframe": "sample string"
+      }
+    ],
+    "suggested_followups": [
+      "sample string"
+    ]
+  }
+}

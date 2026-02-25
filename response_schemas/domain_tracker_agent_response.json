@@ -1,0 +1,50 @@
+{
+  "agent_name": "Domain Tracker Agent",
+  "agent_id": "699f59be0a4cf39744b0dfff",
+  "description": "Helps users log entries, track progress, and query data within any specific life domain (health, finance, career, relationships, habits, goals). Understands domain context, structures entries, and provides domain-specific summaries and trends.",
+  "agent_type": "json",
+  "accessor": "result",
+  "auto_generated": true,
+  "response_schema": {
+    "entry": {
+      "domain": "string",
+      "content": "string",
+      "tags": [
+        "string"
+      ],
+      "metrics": [
+        {
+          "name": "string",
+          "value": "string",
+          "unit": "string"
+        }
+      ],
+      "sentiment": "string"
+    },
+    "summary": "string",
+    "suggestions": [
+      "string"
+    ]
+  },
+  "example_response": {
+    "entry": {
+      "domain": "sample string",
+      "content": "sample string",
+      "tags": [
+        "sample string"
+      ],
+      "metrics": [
+        {
+          "name": "sample string",
+          "value": "sample string",
+          "unit": "sample string"
+        }
+      ],
+      "sentiment": "positive, neutral, or negative"
+    },
+    "summary": "sample string",
+    "suggestions": [
+      "sample string"
+    ]
+  }
+}

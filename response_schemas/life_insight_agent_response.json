@@ -1,0 +1,64 @@
+{
+  "agent_name": "Life Insight Agent",
+  "agent_id": "699f59be790ead763ca87cd2",
+  "description": "Analyzes user-provided data across all life domains (health, finance, career, relationships, habits, goals), generates a holistic life health score, identifies patterns, and provides prioritized action recommendations. Outputs structured domain scores that drive the Life Orb visualization.",
+  "agent_type": "json",
+  "accessor": "result",
+  "auto_generated": true,
+  "response_schema": {
+    "overall_score": "number",
+    "domain_scores": {
+      "health": "number",
+      "finance": "number",
+      "career": "number",
+      "relationships": "number",
+      "habits": "number",
+      "goals": "number"
+    },
+    "patterns": [
+      "string"
+    ],
+    "recommendations": [
+      {
+        "domain": "string",
+        "title": "string",
+        "description": "string",
+        "priority": "string"
+      }
+    ],
+    "orb_state": {
+      "glow_intensity": "number",
+      "color": "string",
+      "pulse_speed": "string"
+    },
+    "summary": "string"
+  },
+  "example_response": {
+    "overall_score": 0,
+    "domain_scores": {
+      "health": 0,
+      "finance": 0,
+      "career": 0,
+      "relationships": 0,
+      "habits": 0,
+      "goals": 0
+    },
+    "patterns": [
+      "sample string"
+    ],
+    "recommendations": [
+      {
+        "domain": "sample string",
+        "title": "sample string",
+        "description": "sample string",
+        "priority": "sample string"
+      }
+    ],
+    "orb_state": {
+      "glow_intensity": 0,
+      "color": "hex color for orb",
+      "pulse_speed": "slow, medium, fast"
+    },
+    "summary": "sample string"
+  }
+}

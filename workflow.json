@@ -1,0 +1,45 @@
+{
+  "nodes": [
+    {
+      "id": "input_node",
+      "type": "Input",
+      "label": "User Input",
+      "nodeCategory": "input"
+    },
+    {
+      "id": "life_insight_agent",
+      "type": "Agent",
+      "label": "Life Insight Agent",
+      "nodeCategory": "agent",
+      "agent_id": "699f59be790ead763ca87cd2"
+    },
+    {
+      "id": "life_coach_agent",
+      "type": "Agent",
+      "label": "Life Coach Chat Agent",
+      "nodeCategory": "agent",
+      "agent_id": "699f59be87c8da309e64d88e"
+    },
+    {
+      "id": "domain_tracker_agent",
+      "type": "Agent",
+      "label": "Domain Tracker Agent",
+      "nodeCategory": "agent",
+      "agent_id": "699f59be0a4cf39744b0dfff"
+    }
+  ],
+  "edges": [
+    {
+      "source": "input_node",
+      "target": "life_insight_agent"
+    },
+    {
+      "source": "input_node",
+      "target": "life_coach_agent"
+    },
+    {
+      "source": "input_node",
+      "target": "domain_tracker_agent"
+    }
+  ]
+}

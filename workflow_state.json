@@ -1,0 +1,39 @@
+{
+  "agents": {
+    "life_insight_agent": {
+      "agent_id": "699f59be790ead763ca87cd2",
+      "name": "Life Insight Agent",
+      "model": "gpt-4.1",
+      "provider": "openai",
+      "temperature": 0.5,
+      "top_p": 0.95,
+      "agent_type": "json",
+      "capabilities": ["text"],
+      "response_schema_file": "response_schemas/life_insight_agent_response.json"
+    },
+    "life_coach_agent": {
+      "agent_id": "699f59be87c8da309e64d88e",
+      "name": "Life Coach Chat Agent",
+      "model": "gpt-4.1",
+      "provider": "openai",
+      "temperature": 0.6,
+      "top_p": 0.95,
+      "agent_type": "json",
+      "capabilities": ["text"],
+      "response_schema_file": "response_schemas/life_coach_chat_agent_response.json"
+    },
+    "domain_tracker_agent": {
+      "agent_id": "699f59be0a4cf39744b0dfff",
+      "name": "Domain Tracker Agent",
+      "model": "gpt-4.1",
+      "provider": "openai",
+      "temperature": 0.4,
+      "top_p": 1.0,
+      "agent_type": "json",
+      "capabilities": ["text"],
+      "response_schema_file": "response_schemas/domain_tracker_agent_response.json"
+    }
+  },
+  "workflow_pattern": "independent",
+  "total_agents": 3
+}
