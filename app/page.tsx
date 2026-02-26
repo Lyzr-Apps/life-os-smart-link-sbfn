@@ -896,17 +896,636 @@ function GratitudeWall({ entries }: { entries: DomainEntry[] }) {
   )
 }
 
+// ---- SLEEP QUALITY GAUGE ----
+
+function SleepQualityGauge({ entries }: { entries: DomainEntry[] }) {
+  const sleepData = useMemo(() => {
+    if (!Array.isArray(entries)) return { lastNight: 0, average: 0 }
+    let total = 0
+    let count = 0
+    let lastNight = 0
+    for (const e of entries) {
+      if (!Array.isArray(e?.metrics)) continue
+      const sm = e.metrics.find(m => (m?.name ?? '').toLowerCase().includes('sleep'))
+      if (sm) {
+        const v = parseFloat(sm.value ?? '0') || 0
+        if (count === 0) lastNight = v
+        total += v
+        count++
+      }
+    }
+    return { lastNight, average: count > 0 ? Math.round((total / count) * 10) / 10 : 0 }
+  }, [entries])
+
+  const pct = Math.min((sleepData.lastNight / 10) * 100, 100)
+  const color = sleepData.lastNight >= 7 ? 'hsl(152, 60%, 50%)' : sleepData.lastNight >= 5 ? 'hsl(40, 70%, 55%)' : 'hsl(0, 60%, 55%)'
+  const r = 50
+  const circumference = Math.PI * r
+  const offset = circumference - (pct / 100) * circumference
+
+  return (
+    <div className="bg-card border border-border p-5 space-y-4">
+      <div className="flex items-center gap-2">
+        <RiZzzLine size={16} className="text-indigo-400" />
+        <span className="text-xs tracking-widest uppercase text-muted-foreground">Sleep Quality</span>
+      </div>
+      <div className="flex items-center justify-center">
+        <svg width="140" height="80" viewBox="0 0 140 80">
+          <path d="M 15 75 A 55 55 0 0 1 125 75" fill="none" stroke="hsl(30, 5%, 18%)" strokeWidth="8" strokeLinecap="square" />
+          <path d="M 15 75 A 55 55 0 0 1 125 75" fill="none" stroke={color} strokeWidth="8" strokeLinecap="square" strokeDasharray={circumference} strokeDashoffset={offset} className="transition-all duration-1000 ease-out" />
+          <text x="70" y="55" textAnchor="middle" fill={color} fontSize="20" fontFamily="serif" fontWeight="300">{sleepData.lastNight}h</text>
+          <text x="70" y="72" textAnchor="middle" fill="hsl(30, 8%, 55%)" fontSize="9" letterSpacing="2">LAST NIGHT</text>
+        </svg>
+      </div>
+      <div className="flex justify-between border-t border-border pt-3">
+        <div className="text-center flex-1">
+          <span className="text-lg font-serif font-light text-foreground">{sleepData.lastNight}h</span>
+          <p className="text-xs tracking-widest uppercase text-muted-foreground/60 mt-0.5">Last Night</p>
+        </div>
+        <div className="w-px bg-border" />
+        <div className="text-center flex-1">
+          <span className="text-lg font-serif font-light text-foreground">{sleepData.average}h</span>
+          <p className="text-xs tracking-widest uppercase text-muted-foreground/60 mt-0.5">7-Day Avg</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ---- NUTRITION RADAR ----
+
+function NutritionRadar({ entries }: { entries: DomainEntry[] }) {
+  const data = useMemo(() => {
+    if (!Array.isArray(entries)) return [0.5, 0.5, 0.5, 0.5, 0.5]
+    let calories = 0, hydration = 0, exercise = 0, nutrition = 0, mindfulness = 0
+    for (const e of entries) {
+      if (!Array.isArray(e?.tags)) continue
+      const tags = e.tags.map(t => typeof t === 'string' ? t.toLowerCase() : '')
+      if (tags.some(t => t.includes('cardio') || t.includes('running') || t.includes('exercise'))) exercise += 0.3
+      if (tags.some(t => t.includes('nutrition') || t.includes('food'))) nutrition += 0.3
+      if (tags.some(t => t.includes('water') || t.includes('hydration'))) hydration += 0.3
+      if (tags.some(t => t.includes('yoga') || t.includes('mindfulness') || t.includes('meditation'))) mindfulness += 0.3
+      if (!Array.isArray(e?.metrics)) continue
+      for (const m of e.metrics) {
+        if ((m?.name ?? '').toLowerCase().includes('calories')) calories += 0.2
+      }
+    }
+    return [
+      Math.min(calories, 1) || 0.15,
+      Math.min(hydration, 1) || 0.15,
+      Math.min(exercise, 1) || 0.15,
+      Math.min(nutrition, 1) || 0.15,
+      Math.min(mindfulness, 1) || 0.15,
+    ]
+  }, [entries])
+
+  const labels = ['Energy', 'Hydrate', 'Active', 'Nutrition', 'Mind']
+  const cx = 70, cy = 70, maxR = 50
+  const angleStep = (2 * Math.PI) / 5
+  const startAngle = -Math.PI / 2
+
+  const getPoint = (index: number, value: number) => {
+    const angle = startAngle + index * angleStep
+    return { x: cx + Math.cos(angle) * maxR * value, y: cy + Math.sin(angle) * maxR * value }
+  }
+
+  const dataPoints = data.map((v, i) => getPoint(i, v))
+  const dataPath = dataPoints.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ') + 'Z'
+  const gridLevels = [0.25, 0.5, 0.75, 1]
+
+  return (
+    <div className="bg-card border border-border p-5 space-y-3">
+      <div className="flex items-center gap-2">
+        <RiShieldCheckLine size={16} className="text-rose-400" />
+        <span className="text-xs tracking-widest uppercase text-muted-foreground">Wellness Radar</span>
+      </div>
+      <div className="flex justify-center">
+        <svg width="140" height="140" viewBox="0 0 140 140">
+          {gridLevels.map((level, gi) => {
+            const pts = Array.from({ length: 5 }, (_, i) => getPoint(i, level))
+            const path = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ') + 'Z'
+            return <path key={gi} d={path} fill="none" stroke="hsl(30, 5%, 18%)" strokeWidth="0.5" />
+          })}
+          {Array.from({ length: 5 }, (_, i) => {
+            const outer = getPoint(i, 1)
+            return <line key={i} x1={cx} y1={cy} x2={outer.x} y2={outer.y} stroke="hsl(30, 5%, 18%)" strokeWidth="0.5" />
+          })}
+          <path d={dataPath} fill="rgba(244,63,94,0.12)" stroke="hsl(0, 65%, 55%)" strokeWidth="1.5" className="transition-all duration-700" />
+          {dataPoints.map((p, i) => (
+            <circle key={i} cx={p.x} cy={p.y} r="2.5" fill="hsl(0, 65%, 55%)" className="transition-all duration-500" />
+          ))}
+          {Array.from({ length: 5 }, (_, i) => {
+            const lp = getPoint(i, 1.2)
+            return <text key={i} x={lp.x} y={lp.y} textAnchor="middle" dominantBaseline="middle" fill="hsl(30, 8%, 55%)" fontSize="7" letterSpacing="1">{labels[i]}</text>
+          })}
+        </svg>
+      </div>
+    </div>
+  )
+}
+
+// ---- NET WORTH TRACKER ----
+
+function NetWorthTracker({ entries }: { entries: DomainEntry[] }) {
+  const chartData = useMemo(() => {
+    if (!Array.isArray(entries)) return { points: [], total: 0 }
+    let running = 0
+    const pts: number[] = []
+    const reversed = [...entries].reverse()
+    for (const e of reversed) {
+      if (!Array.isArray(e?.metrics)) continue
+      for (const m of e.metrics) {
+        const name = (m?.name ?? '').toLowerCase()
+        if (name.includes('amount') || name.includes('bonus') || name.includes('savings')) {
+          running += parseFloat(m?.value ?? '0') || 0
+        }
+      }
+      pts.push(running)
+    }
+    return { points: pts.length > 0 ? pts : [0], total: running }
+  }, [entries])
+
+  const maxVal = Math.max(...chartData.points, 1)
+  const w = 260, h = 60, pad = 4
+  const step = chartData.points.length > 1 ? (w - pad * 2) / (chartData.points.length - 1) : 0
+  const pathPoints = chartData.points.map((v, i) => ({
+    x: pad + i * step,
+    y: h - pad - ((v / maxVal) * (h - pad * 2))
+  }))
+  const linePath = pathPoints.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ')
+  const areaPath = linePath + ` L${pathPoints[pathPoints.length - 1]?.x ?? pad},${h - pad} L${pad},${h - pad} Z`
+
+  return (
+    <div className="bg-card border border-border p-5 space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <RiLineChartLine size={16} className="text-emerald-400" />
+          <span className="text-xs tracking-widest uppercase text-muted-foreground">Net Worth Trend</span>
+        </div>
+        <span className="text-lg font-serif font-light text-emerald-400">${chartData.total.toLocaleString()}</span>
+      </div>
+      <svg width="100%" height="60" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="nwGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="hsl(152, 60%, 50%)" stopOpacity="0.3" />
+            <stop offset="100%" stopColor="hsl(152, 60%, 50%)" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        {chartData.points.length > 1 && (
+          <>
+            <path d={areaPath} fill="url(#nwGrad)" />
+            <path d={linePath} fill="none" stroke="hsl(152, 60%, 50%)" strokeWidth="2" strokeLinecap="round" />
+            {pathPoints.map((p, i) => (
+              <circle key={i} cx={p.x} cy={p.y} r="2" fill="hsl(152, 65%, 55%)" />
+            ))}
+          </>
+        )}
+      </svg>
+    </div>
+  )
+}
+
+// ---- SAVINGS GOAL RING ----
+
+function SavingsGoalRing({ entries }: { entries: DomainEntry[] }) {
+  const savings = useMemo(() => {
+    if (!Array.isArray(entries)) return { current: 0, target: 10000 }
+    let current = 0, target = 10000
+    for (const e of entries) {
+      if (!Array.isArray(e?.metrics)) continue
+      for (const m of e.metrics) {
+        const name = (m?.name ?? '').toLowerCase()
+        if (name === 'current' || name.includes('savings')) {
+          const v = parseFloat(m?.value ?? '0') || 0
+          if (v > current) current = v
+        }
+        if (name === 'target') {
+          const v = parseFloat(m?.value ?? '0') || 0
+          if (v > 0) target = v
+        }
+      }
+    }
+    return { current, target }
+  }, [entries])
+
+  const pct = Math.min((savings.current / savings.target) * 100, 100)
+  const r = 40, sw = 6
+  const circumference = 2 * Math.PI * r
+  const offset = circumference - (pct / 100) * circumference
+
+  return (
+    <div className="bg-card border border-border p-5 space-y-3">
+      <div className="flex items-center gap-2">
+        <RiSeedlingLine size={16} className="text-emerald-400" />
+        <span className="text-xs tracking-widest uppercase text-muted-foreground">Savings Goal</span>
+      </div>
+      <div className="flex items-center justify-center gap-6">
+        <div className="relative flex items-center justify-center" style={{ width: 100, height: 100 }}>
+          <svg width="100" height="100" className="transform -rotate-90">
+            <circle cx="50" cy="50" r={r} fill="none" stroke="hsl(30, 5%, 18%)" strokeWidth={sw} />
+            <circle cx="50" cy="50" r={r} fill="none" stroke="hsl(152, 60%, 50%)" strokeWidth={sw} strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="square" className="transition-all duration-1000 ease-out" />
+          </svg>
+          <div className="absolute flex flex-col items-center">
+            <span className="text-sm font-serif font-light text-emerald-400">{Math.round(pct)}%</span>
+          </div>
+        </div>
+        <div className="space-y-2">
+          <div>
+            <span className="text-xs tracking-widest uppercase text-muted-foreground/60">Saved</span>
+            <p className="text-lg font-serif font-light text-foreground">${savings.current.toLocaleString()}</p>
+          </div>
+          <div className="h-px bg-border" />
+          <div>
+            <span className="text-xs tracking-widest uppercase text-muted-foreground/60">Target</span>
+            <p className="text-sm font-serif font-light text-muted-foreground">${savings.target.toLocaleString()}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ---- CERTIFICATION TRACKER ----
+
+function CertificationTracker({ entries }: { entries: DomainEntry[] }) {
+  const certs = useMemo(() => {
+    if (!Array.isArray(entries)) return []
+    return entries.filter(e => {
+      if (!Array.isArray(e?.tags)) return false
+      return e.tags.some(t => typeof t === 'string' && (t.includes('certification') || t.includes('learning') || t.includes('course')))
+    }).slice(0, 3).map(e => {
+      let progress = 0
+      if (Array.isArray(e?.metrics)) {
+        const pm = e.metrics.find(m => (m?.name ?? '').toLowerCase() === 'progress')
+        if (pm) progress = parseFloat(pm.value ?? '0') || 0
+      }
+      return { content: (e?.content ?? '').slice(0, 60), progress: Math.min(progress, 100) }
+    })
+  }, [entries])
+
+  if (certs.length === 0) return null
+  const milestones = [25, 50, 75, 100]
+
+  return (
+    <div className="bg-card border border-border p-5 space-y-3">
+      <div className="flex items-center gap-2">
+        <RiAwardLine size={16} className="text-indigo-400" />
+        <span className="text-xs tracking-widest uppercase text-muted-foreground">Learning Progress</span>
+      </div>
+      <div className="space-y-4">
+        {certs.map((cert, i) => (
+          <div key={i} className="space-y-2" style={{ animation: `fadeInUp 0.3s ease-out ${i * 0.1}s both` }}>
+            <p className="text-xs text-foreground/80 leading-relaxed truncate">{cert.content}</p>
+            <div className="relative">
+              <div className="h-2 bg-muted overflow-hidden">
+                <div className="h-full bg-indigo-500/60 transition-all duration-1000" style={{ width: `${cert.progress}%` }} />
+              </div>
+              <div className="flex justify-between mt-1">
+                {milestones.map((ms, j) => (
+                  <div key={j} className="flex flex-col items-center" style={{ position: 'absolute', left: `${ms}%`, transform: 'translateX(-50%)', top: '-2px' }}>
+                    <div className={`w-2 h-2 rounded-full border ${cert.progress >= ms ? 'bg-indigo-400 border-indigo-400' : 'bg-muted border-border'}`} />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground/40">{cert.progress}% complete</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ---- NETWORK MAP ----
+
+function NetworkMap({ entries }: { entries: DomainEntry[] }) {
+  const networkCount = useMemo(() => {
+    if (!Array.isArray(entries)) return 0
+    return entries.filter(e => {
+      if (!Array.isArray(e?.tags)) return false
+      return e.tags.some(t => typeof t === 'string' && (t.includes('network') || t.includes('team') || t.includes('management')))
+    }).length
+  }, [entries])
+
+  const nodes = useMemo(() => {
+    const positions = [
+      { x: 60, y: 40 }, { x: 100, y: 25 }, { x: 130, y: 55 },
+      { x: 40, y: 70 }, { x: 90, y: 75 }, { x: 120, y: 85 },
+      { x: 70, y: 10 },
+    ]
+    return positions.slice(0, Math.max(Math.min(networkCount + 2, 7), 3))
+  }, [networkCount])
+
+  return (
+    <div className="bg-card border border-border p-5 space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <RiGlobalLine size={16} className="text-purple-400" />
+          <span className="text-xs tracking-widest uppercase text-muted-foreground">Network</span>
+        </div>
+        <span className="text-sm font-serif font-light text-foreground">{networkCount} connections</span>
+      </div>
+      <div className="flex justify-center">
+        <svg width="170" height="100" viewBox="0 0 170 100">
+          {nodes.map((n, i) => nodes.slice(i + 1).map((n2, j) => {
+            const dist = Math.sqrt(Math.pow(n.x - n2.x, 2) + Math.pow(n.y - n2.y, 2))
+            if (dist > 70) return null
+            return <line key={`${i}-${j}`} x1={n.x} y1={n.y} x2={n2.x} y2={n2.y} stroke="hsl(270, 40%, 40%)" strokeWidth="0.5" opacity="0.4" style={{ animation: `glowPulse 3s ease-in-out infinite ${(i + j) * 0.3}s` }} />
+          }))}
+          {nodes.map((n, i) => (
+            <React.Fragment key={i}>
+              <circle cx={n.x} cy={n.y} r={i === 0 ? 6 : 4} fill={i === 0 ? 'hsl(270, 50%, 55%)' : 'hsl(270, 40%, 45%)'} opacity={i === 0 ? 1 : 0.7} style={{ animation: `sparklePulse ${2 + i * 0.3}s ease-in-out infinite ${i * 0.2}s` }} />
+              {i === 0 && <circle cx={n.x} cy={n.y} r="10" fill="none" stroke="hsl(270, 50%, 55%)" strokeWidth="0.5" opacity="0.3" style={{ animation: 'pulseRing 2s ease-out infinite' }} />}
+            </React.Fragment>
+          ))}
+        </svg>
+      </div>
+    </div>
+  )
+}
+
+// ---- RELATIONSHIP SCOREBOARD ----
+
+function RelationshipScoreBoard({ entries }: { entries: DomainEntry[] }) {
+  const categories = useMemo(() => {
+    const cats: Record<string, number> = { family: 0, friends: 0, romantic: 0, professional: 0 }
+    if (!Array.isArray(entries)) return Object.entries(cats).map(([name, count]) => ({ name, count }))
+    for (const e of entries) {
+      if (!Array.isArray(e?.tags)) continue
+      for (const tag of e.tags) {
+        if (typeof tag !== 'string') continue
+        const t = tag.toLowerCase()
+        if (t.includes('family') || t.includes('dinner')) cats.family++
+        else if (t.includes('friend') || t.includes('call')) cats.friends++
+        else if (t.includes('romantic') || t.includes('date') || t.includes('partner')) cats.romantic++
+        else if (t.includes('work') || t.includes('colleague') || t.includes('professional')) cats.professional++
+      }
+    }
+    return Object.entries(cats).map(([name, count]) => ({ name, count }))
+  }, [entries])
+
+  const icons: Record<string, React.ReactNode> = {
+    family: <RiGroupLine size={14} />,
+    friends: <RiPhoneLine size={14} />,
+    romantic: <RiUserHeartLine size={14} />,
+    professional: <RiTeamLine size={14} />,
+  }
+  const max = Math.max(...categories.map(c => c.count), 1)
+
+  return (
+    <div className="bg-card border border-border p-5 space-y-3">
+      <div className="flex items-center gap-2">
+        <RiHandHeartLine size={16} className="text-pink-400" />
+        <span className="text-xs tracking-widest uppercase text-muted-foreground">Connection Types</span>
+      </div>
+      <div className="space-y-2.5">
+        {categories.map((cat, i) => (
+          <div key={i} className="flex items-center gap-3">
+            <span className="text-pink-400/60 w-5 flex justify-center">{icons[cat.name] ?? <RiGroupLine size={14} />}</span>
+            <span className="text-xs text-muted-foreground w-20 capitalize tracking-wider">{cat.name}</span>
+            <div className="flex-1 h-2 bg-muted overflow-hidden">
+              <div className="h-full bg-pink-500/50 transition-all duration-700" style={{ width: `${(cat.count / max) * 100}%`, animation: `momentumFill 0.8s ease-out ${i * 0.1}s both` }} />
+            </div>
+            <span className="text-xs text-muted-foreground/60 w-6 text-right">{cat.count}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ---- HABIT COMPLETION WHEEL ----
+
+function HabitCompletionWheel({ entries }: { entries: DomainEntry[] }) {
+  const segments = useMemo(() => {
+    if (!Array.isArray(entries) || entries.length === 0) return { positive: 0, neutral: 0, negative: 0, total: 0 }
+    const positive = entries.filter(e => e?.sentiment === 'positive').length
+    const negative = entries.filter(e => e?.sentiment === 'negative').length
+    const neutral = entries.length - positive - negative
+    return { positive, neutral, negative, total: entries.length }
+  }, [entries])
+
+  if (segments.total === 0) return null
+  const r = 36, sw = 10, cx = 50, cy = 50
+  const circumference = 2 * Math.PI * r
+  const posArc = (segments.positive / segments.total) * circumference
+  const neutArc = (segments.neutral / segments.total) * circumference
+  const negArc = (segments.negative / segments.total) * circumference
+  const posPct = Math.round((segments.positive / segments.total) * 100)
+
+  return (
+    <div className="bg-card border border-border p-5 space-y-3">
+      <div className="flex items-center gap-2">
+        <RiPieChartLine size={16} className="text-amber-400" />
+        <span className="text-xs tracking-widest uppercase text-muted-foreground">Completion Rate</span>
+      </div>
+      <div className="flex items-center gap-6">
+        <div className="relative flex items-center justify-center" style={{ width: 100, height: 100 }}>
+          <svg width="100" height="100" className="transform -rotate-90">
+            <circle cx={cx} cy={cy} r={r} fill="none" stroke="hsl(152, 60%, 50%)" strokeWidth={sw} strokeDasharray={`${posArc} ${circumference - posArc}`} strokeDashoffset="0" className="transition-all duration-700" />
+            <circle cx={cx} cy={cy} r={r} fill="none" stroke="hsl(40, 70%, 55%)" strokeWidth={sw} strokeDasharray={`${neutArc} ${circumference - neutArc}`} strokeDashoffset={`${-posArc}`} className="transition-all duration-700" />
+            <circle cx={cx} cy={cy} r={r} fill="none" stroke="hsl(0, 60%, 55%)" strokeWidth={sw} strokeDasharray={`${negArc} ${circumference - negArc}`} strokeDashoffset={`${-(posArc + neutArc)}`} className="transition-all duration-700" />
+          </svg>
+          <span className="absolute text-lg font-serif font-light text-foreground">{posPct}%</span>
+        </div>
+        <div className="space-y-2">
+          {[
+            { label: 'Completed', count: segments.positive, color: 'bg-green-500' },
+            { label: 'Partial', count: segments.neutral, color: 'bg-yellow-500' },
+            { label: 'Missed', count: segments.negative, color: 'bg-red-400' },
+          ].map((item, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${item.color}`} />
+              <span className="text-xs text-muted-foreground tracking-wider">{item.label}</span>
+              <span className="text-xs text-muted-foreground/60 ml-auto">{item.count}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ---- GOAL TIMELINE ----
+
+function GoalTimeline({ entries }: { entries: DomainEntry[] }) {
+  if (!Array.isArray(entries) || entries.length === 0) return null
+  return (
+    <div className="bg-card border border-border p-5 space-y-3">
+      <div className="flex items-center gap-2">
+        <RiTimeLine size={16} className="text-sky-400" />
+        <span className="text-xs tracking-widest uppercase text-muted-foreground">Goal Timeline</span>
+      </div>
+      <div className="relative pl-6 space-y-4">
+        <div className="absolute left-2 top-1 bottom-1 w-px bg-sky-500/20" />
+        {entries.slice(0, 4).map((entry, i) => {
+          let progress = 0
+          if (Array.isArray(entry?.metrics)) {
+            const pm = entry.metrics.find(m => (m?.name ?? '').toLowerCase() === 'progress')
+            if (pm) progress = parseFloat(pm.value ?? '0') || 0
+          }
+          return (
+            <div key={i} className="relative" style={{ animation: `fadeInUp 0.3s ease-out ${i * 0.1}s both` }}>
+              <div className={`absolute -left-4 top-1 w-3 h-3 rounded-full border-2 ${progress >= 100 ? 'bg-sky-400 border-sky-400' : progress > 0 ? 'bg-sky-500/30 border-sky-400' : 'bg-muted border-border'}`} />
+              <div className="space-y-1">
+                <p className="text-xs text-foreground/80 leading-relaxed line-clamp-2">{entry?.content ?? ''}</p>
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-1.5 bg-muted overflow-hidden max-w-[120px]">
+                    <div className="h-full bg-sky-500/50 transition-all duration-700" style={{ width: `${Math.min(progress, 100)}%` }} />
+                  </div>
+                  <span className="text-xs text-sky-400/70">{Math.round(progress)}%</span>
+                  {entry?.timestamp && (
+                    <span className="text-xs text-muted-foreground/40">{new Date(entry.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ---- DOMAIN COMPARISON RADAR ----
+
+function DomainComparison({ scores }: { scores: DomainScores }) {
+  const domainKeys: DomainKey[] = ['health', 'finance', 'career', 'relationships', 'habits', 'goals']
+  const labels = ['Health', 'Finance', 'Career', 'Relations', 'Habits', 'Goals']
+  const cx = 90, cy = 90, maxR = 65
+  const angleStep = (2 * Math.PI) / 6
+  const startAngle = -Math.PI / 2
+
+  const getPoint = (index: number, value: number) => {
+    const angle = startAngle + index * angleStep
+    return { x: cx + Math.cos(angle) * maxR * value, y: cy + Math.sin(angle) * maxR * value }
+  }
+
+  const values = domainKeys.map(k => (scores?.[k] ?? 0) / 100)
+  const dataPoints = values.map((v, i) => getPoint(i, v))
+  const dataPath = dataPoints.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ') + 'Z'
+  const gridLevels = [0.25, 0.5, 0.75, 1]
+  const colors = ['text-rose-400', 'text-emerald-400', 'text-indigo-400', 'text-pink-400', 'text-amber-400', 'text-sky-400']
+  const strokeColors = ['hsl(0,65%,55%)', 'hsl(152,60%,50%)', 'hsl(240,60%,65%)', 'hsl(330,60%,60%)', 'hsl(40,70%,55%)', 'hsl(199,60%,50%)']
+
+  return (
+    <div className="bg-card border border-border p-6">
+      <div className="flex items-center gap-3 mb-4">
+        <RiCompassLine size={16} className="text-primary" />
+        <span className="text-xs tracking-widest uppercase text-muted-foreground">Life Balance Radar</span>
+      </div>
+      <div className="flex justify-center">
+        <svg width="180" height="180" viewBox="0 0 180 180">
+          {gridLevels.map((level, gi) => {
+            const pts = Array.from({ length: 6 }, (_, i) => getPoint(i, level))
+            const path = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ') + 'Z'
+            return <path key={gi} d={path} fill="none" stroke="hsl(30, 5%, 18%)" strokeWidth="0.5" />
+          })}
+          {Array.from({ length: 6 }, (_, i) => {
+            const outer = getPoint(i, 1)
+            return <line key={i} x1={cx} y1={cy} x2={outer.x} y2={outer.y} stroke="hsl(30, 5%, 18%)" strokeWidth="0.5" />
+          })}
+          <path d={dataPath} fill="rgba(191,155,48,0.08)" stroke="hsl(40, 50%, 55%)" strokeWidth="1.5" className="transition-all duration-1000" />
+          {dataPoints.map((p, i) => (
+            <circle key={i} cx={p.x} cy={p.y} r="3" fill={strokeColors[i]} className="transition-all duration-700" />
+          ))}
+          {Array.from({ length: 6 }, (_, i) => {
+            const lp = getPoint(i, 1.22)
+            return <text key={i} x={lp.x} y={lp.y} textAnchor="middle" dominantBaseline="middle" fill="hsl(30, 8%, 55%)" fontSize="7" letterSpacing="1">{labels[i]}</text>
+          })}
+        </svg>
+      </div>
+      <div className="grid grid-cols-3 gap-2 mt-4">
+        {domainKeys.map((k, i) => (
+          <div key={k} className="flex items-center gap-1.5">
+            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: strokeColors[i] }} />
+            <span className="text-xs text-muted-foreground/60 tracking-wider capitalize">{k}</span>
+            <span className="text-xs text-foreground ml-auto">{scores?.[k] ?? 0}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ---- WEEKLY PULSE ----
+
+function WeeklyPulse({ entries }: { entries: Record<string, DomainEntry[]> }) {
+  const domainKeys: DomainKey[] = ['health', 'finance', 'career', 'relationships', 'habits', 'goals']
+  const strokeColors = ['hsl(0,65%,55%)', 'hsl(152,60%,50%)', 'hsl(240,60%,65%)', 'hsl(330,60%,60%)', 'hsl(40,70%,55%)', 'hsl(199,60%,50%)']
+
+  const weekData = useMemo(() => {
+    const result: { label: string; domains: number[] }[] = []
+    const now = new Date()
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now)
+      d.setDate(d.getDate() - i)
+      const dayStr = d.toISOString().split('T')[0]
+      const domains = domainKeys.map(dk => {
+        const arr = entries[dk]
+        if (!Array.isArray(arr)) return 0
+        return arr.filter(e => {
+          try { return (e?.timestamp ?? '').split('T')[0] === dayStr } catch { return false }
+        }).length
+      })
+      result.push({ label: d.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 2), domains })
+    }
+    return result
+  }, [entries])
+
+  const maxTotal = Math.max(...weekData.map(d => d.domains.reduce((a, b) => a + b, 0)), 1)
+
+  return (
+    <div className="bg-card border border-border p-6">
+      <div className="flex items-center gap-3 mb-4">
+        <RiBarChartLine size={16} className="text-primary" />
+        <span className="text-xs tracking-widest uppercase text-muted-foreground">Weekly Activity Pulse</span>
+      </div>
+      <div className="flex items-end gap-3 h-24">
+        {weekData.map((day, di) => {
+          const total = day.domains.reduce((a, b) => a + b, 0)
+          const barH = Math.max((total / maxTotal) * 80, 4)
+          return (
+            <div key={di} className="flex-1 flex flex-col items-center gap-1">
+              <div className="w-full relative" style={{ height: `${barH}px`, animation: `fadeInUp 0.3s ease-out ${di * 0.05}s both` }}>
+                {day.domains.map((count, ci) => {
+                  if (count === 0) return null
+                  const segH = total > 0 ? (count / total) * 100 : 0
+                  return (
+                    <div key={ci} className="w-full" style={{ height: `${segH}%`, backgroundColor: strokeColors[ci], opacity: 0.7 }} />
+                  )
+                })}
+              </div>
+              <span className="text-xs text-muted-foreground/40">{day.label}</span>
+            </div>
+          )
+        })}
+      </div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-4">
+        {domainKeys.map((dk, i) => (
+          <div key={dk} className="flex items-center gap-1.5">
+            <div className="w-2 h-2" style={{ backgroundColor: strokeColors[i], opacity: 0.7 }} />
+            <span className="text-xs text-muted-foreground/50 capitalize tracking-wider">{dk}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ---- DOMAIN STAT WIDGETS ----
 
 function StatCard({ icon, label, value, sub, accent }: { icon: React.ReactNode; label: string; value: string; sub?: string; accent?: string }) {
   return (
-    <div className="bg-card border border-border p-4 space-y-2 group hover:border-primary/15 transition-all duration-300">
+    <div className="stat-accent glass-card bg-card border border-border p-4 space-y-2 group hover:border-primary/15 transition-all duration-300 hover:shadow-lg hover:shadow-black/20">
       <div className="flex items-center gap-2">
         <span className={`${accent || 'text-primary/70'} group-hover:scale-110 transition-transform duration-300`}>{icon}</span>
         <span className="text-xs tracking-widest uppercase text-muted-foreground">{label}</span>
       </div>
       <div className="flex items-baseline gap-1">
-        <span className="text-2xl font-serif font-light text-foreground">{value}</span>
+        <span className="text-2xl font-serif font-light text-foreground" style={{ animation: 'numberCount 0.6s ease-out' }}>{value}</span>
         {sub && <span className="text-xs text-muted-foreground">{sub}</span>}
       </div>
     </div>
@@ -1246,6 +1865,10 @@ export default function Page() {
           <StatCard icon={<RiPulseLine size={16} />} label="Heart Rate" value={getMetricValue(entries, 'Heart Rate')} accent="text-rose-400" />
         </div>
         <MoodTimeline entries={entries} />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <SleepQualityGauge entries={entries} />
+          <NutritionRadar entries={entries} />
+        </div>
       </div>
     )
   }
@@ -1261,6 +1884,10 @@ export default function Page() {
         </div>
         <BudgetMeter entries={entries} />
         <ExpenseCategoryGrid entries={entries} />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <SavingsGoalRing entries={entries} />
+          <NetWorthTracker entries={entries} />
+        </div>
       </div>
     )
   }
@@ -1275,6 +1902,8 @@ export default function Page() {
           <StatCard icon={<RiRocketLine size={16} />} label="Progress" value={getMetricValue(entries, 'Progress')} accent="text-purple-400" />
         </div>
         <SkillsProgress entries={entries} />
+        <CertificationTracker entries={entries} />
+        <NetworkMap entries={entries} />
       </div>
     )
   }
@@ -1290,6 +1919,7 @@ export default function Page() {
         </div>
         <InteractionHeatmap entries={entries} />
         <GratitudeWall entries={entries} />
+        <RelationshipScoreBoard entries={entries} />
       </div>
     )
   }
@@ -1302,6 +1932,7 @@ export default function Page() {
           <StatCard icon={<RiCheckDoubleLine size={16} />} label="Completed" value={String(getSentimentCount(entries, 'positive'))} accent="text-green-400" />
           <StatCard icon={<RiMedalLine size={16} />} label="Total Entries" value={String(entries.length)} accent="text-amber-400" />
         </div>
+        <HabitCompletionWheel entries={entries} />
       </div>
     )
   }
@@ -1324,6 +1955,7 @@ export default function Page() {
           <StatCard icon={<RiAwardLine size={16} />} label="Avg Progress" value={`${avgProgress}%`} accent="text-emerald-400" />
         </div>
         <GoalProgressCards entries={entries} />
+        <GoalTimeline entries={entries} />
       </div>
     )
   }
@@ -1342,10 +1974,17 @@ export default function Page() {
   function DashboardView() {
     return (
       <div className="space-y-8 md:space-y-12">
-        <div className="h-px w-full bg-gradient-to-r from-transparent via-primary/20 to-transparent mb-4" />
-        <div className="flex flex-col items-center">
+        <div className="section-divider mb-4" />
+        <div className="relative flex flex-col items-center">
+          {/* Aurora background */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-gradient-to-br from-primary/8 via-amber-500/5 to-transparent blur-3xl" style={{ animation: 'auroraFlow 12s ease-in-out infinite' }} />
+            <div className="absolute top-1/3 right-1/4 w-80 h-80 rounded-full bg-gradient-to-bl from-indigo-500/5 via-purple-500/3 to-transparent blur-3xl" style={{ animation: 'auroraFlow2 15s ease-in-out infinite' }} />
+            <div className="absolute bottom-1/4 left-1/3 w-72 h-72 rounded-full bg-gradient-to-tr from-rose-500/4 via-pink-500/3 to-transparent blur-3xl" style={{ animation: 'ambientFloat 20s ease-in-out infinite' }} />
+          </div>
           <LifeOrb orbState={currentInsight?.orb_state} score={currentInsight?.overall_score} isLoading={isLoadingInsight} />
-          <button onClick={handleGetInsights} disabled={isLoadingInsight || sampleData} className="mt-4 px-10 py-3 bg-primary text-primary-foreground text-xs font-light tracking-widest uppercase transition-all duration-300 hover:shadow-lg hover:shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3 rounded-none">
+          <button onClick={handleGetInsights} disabled={isLoadingInsight || sampleData} className="relative mt-4 px-10 py-3 bg-primary text-primary-foreground text-xs font-light tracking-widest uppercase transition-all duration-500 hover:shadow-lg hover:shadow-primary/30 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3 rounded-none overflow-hidden group">
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ animation: 'subtleShine 4s ease-in-out infinite' }} />
             {isLoadingInsight ? (
               <><div className="w-4 h-4 border border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" /><span>Analyzing Life Data</span></>
             ) : (
@@ -1369,7 +2008,7 @@ export default function Page() {
               const colors = DOMAIN_COLORS[key]
               const latestContent = entries.length > 0 ? (entries[0]?.content ?? '').slice(0, 60) : ''
               return (
-                <button key={key} onClick={() => { setActiveSection(key); setSidebarOpen(false); setDomainTab('overview'); setShowEntryForm(false); setAskResponse(null) }} className="group bg-card border border-border p-6 text-left transition-all duration-500 hover:border-primary/30 hover:shadow-xl hover:shadow-primary/5 relative overflow-hidden rounded-none" style={{ animation: `fadeInUp 0.4s ease-out ${domIdx * 0.08}s both` }}>
+                <button key={key} onClick={() => { setActiveSection(key); setSidebarOpen(false); setDomainTab('overview'); setShowEntryForm(false); setAskResponse(null) }} className="group glass-card hover-lift bg-card border border-border p-6 text-left transition-all duration-500 hover:border-primary/30 hover:shadow-xl hover:shadow-primary/10 relative overflow-hidden rounded-none" style={{ animation: `fadeInUp 0.4s ease-out ${domIdx * 0.08}s both` }}>
                   <div className={`absolute inset-0 bg-gradient-to-br ${colors.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-700`} />
                   <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-primary/0 group-hover:via-primary/20 to-transparent transition-all duration-500" />
                   <div className="relative z-10">
@@ -1402,6 +2041,13 @@ export default function Page() {
             })}
           </div>
         </div>
+
+        {currentInsight && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" style={{ animation: 'fadeInUp 0.5s ease-out' }}>
+            <DomainComparison scores={currentInsight.domain_scores} />
+            <WeeklyPulse entries={currentEntries} />
+          </div>
+        )}
 
         {currentInsight && (
           <div className="bg-card border border-border" style={{ animation: 'fadeInUp 0.5s ease-out' }}>
@@ -1460,7 +2106,7 @@ export default function Page() {
                         const domKey = (rec?.domain ?? '').toLowerCase() as DomainKey
                         const domColor = DOMAIN_COLORS[domKey]
                         return (
-                          <div key={i} className={`bg-secondary/50 border border-border p-5 space-y-3 relative overflow-hidden hover:border-primary/20 transition-all duration-500`} style={{ animation: `borderGlow 4s ease-in-out infinite ${i * 0.6}s` }}>
+                          <div key={i} className={`glass-card hover-lift bg-secondary/50 border border-border p-5 space-y-3 relative overflow-hidden hover:border-primary/20 transition-all duration-500`} style={{ animation: `borderGlow 4s ease-in-out infinite ${i * 0.6}s` }}>
                             <div className={`absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r ${domColor ? `from-transparent ${domColor.gradient.split(' ')[0].replace('from-', 'via-')}` : 'from-transparent via-primary/20'} to-transparent`} />
                             <div className="flex items-center justify-between">
                               <span className={`text-xs tracking-widest uppercase ${domColor?.accent ?? 'text-primary/70'}`}>{rec?.domain ?? ''}</span>
@@ -1531,7 +2177,7 @@ export default function Page() {
               </div>
               <div className="lg:col-span-2 space-y-4">
                 <h4 className="text-xs tracking-widest uppercase text-muted-foreground">Score</h4>
-                <div className="bg-card border border-border p-8 flex flex-col items-center gap-4 relative overflow-hidden">
+                <div className="glass-card bg-card border border-border p-8 flex flex-col items-center gap-4 relative overflow-hidden">
                   <div className={`absolute inset-0 bg-gradient-to-b ${DOMAIN_COLORS[domain]?.gradient ?? ''} opacity-30`} />
                   <div className="relative z-10 flex flex-col items-center gap-4">
                     <ScoreRing score={score} size={130} strokeWidth={5} />
@@ -1641,7 +2287,7 @@ export default function Page() {
             ) : (
               <div className="space-y-3">
                 {entries.map((entry, i) => (
-                  <div key={i} className="bg-card border border-border overflow-hidden group" style={{ animation: `fadeInUp 0.3s ease-out ${i * 0.05}s both` }}>
+                  <div key={i} className="bg-card border border-border overflow-hidden group hover-lift" style={{ animation: `fadeInUp 0.3s ease-out ${i * 0.05}s both` }}>
                     <div className="flex">
                       <div className={`w-1 flex-shrink-0 ${entry?.sentiment === 'positive' ? 'bg-green-500/60' : entry?.sentiment === 'negative' ? 'bg-red-400/60' : 'bg-yellow-500/60'}`} />
                       <div className="flex-1 p-5 space-y-3">
@@ -1771,12 +2417,18 @@ export default function Page() {
 
   return (
     <PageErrorBoundary>
-      <div className="min-h-screen bg-background text-foreground flex">
+      <div className="min-h-screen bg-background text-foreground flex relative">
+        {/* Ambient background particles */}
+        <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+          <div className="absolute top-[15%] left-[10%] w-64 h-64 rounded-full bg-primary/[0.02] blur-3xl" style={{ animation: 'ambientFloat 25s ease-in-out infinite' }} />
+          <div className="absolute top-[60%] right-[15%] w-48 h-48 rounded-full bg-indigo-500/[0.015] blur-3xl" style={{ animation: 'ambientFloat 30s ease-in-out infinite 5s' }} />
+          <div className="absolute bottom-[20%] left-[30%] w-56 h-56 rounded-full bg-rose-500/[0.01] blur-3xl" style={{ animation: 'ambientFloat 35s ease-in-out infinite 10s' }} />
+        </div>
         {sidebarOpen && (
           <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setSidebarOpen(false)} />
         )}
 
-        <aside className={`fixed md:static inset-y-0 left-0 z-40 w-64 flex-shrink-0 flex flex-col border-r border-border transition-transform duration-300 md:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`} style={{ backgroundColor: 'hsl(30, 7%, 7%)' }}>
+        <aside className={`fixed md:static inset-y-0 left-0 z-40 w-64 flex-shrink-0 flex flex-col border-r border-border/80 transition-transform duration-300 md:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`} style={{ background: 'linear-gradient(180deg, hsl(30, 7%, 7%) 0%, hsl(30, 6%, 5%) 100%)' }}>
           <div className="p-6 border-b border-border">
             <div className="flex items-center justify-between">
               <h1 className="font-serif text-xl tracking-widest text-foreground">
@@ -1823,7 +2475,7 @@ export default function Page() {
         </aside>
 
         <main className="flex-1 min-w-0 flex flex-col">
-          <header className="sticky top-0 z-20 bg-background/85 backdrop-blur-md border-b border-border px-4 md:px-8 py-4 flex items-center justify-between">
+          <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-xl border-b border-border/80 px-4 md:px-8 py-4 flex items-center justify-between shadow-sm shadow-black/10">
             <div className="flex items-center gap-3">
               <button className="md:hidden p-1.5 text-muted-foreground hover:text-foreground transition-colors" onClick={() => setSidebarOpen(true)}>
                 <RiMenuLine size={20} />
@@ -1867,7 +2519,7 @@ export default function Page() {
           </div>
         </main>
 
-        <button onClick={() => setChatOpen(true)} className="fixed bottom-6 right-6 z-30 w-14 h-14 bg-primary text-primary-foreground flex items-center justify-center shadow-lg shadow-primary/25 transition-all duration-300 hover:shadow-xl hover:shadow-primary/40 hover:scale-110 rounded-full group" aria-label="Open Life Coach Chat">
+        <button onClick={() => setChatOpen(true)} className="fixed bottom-6 right-6 z-30 w-14 h-14 bg-primary text-primary-foreground flex items-center justify-center shadow-lg shadow-primary/30 transition-all duration-500 hover:shadow-2xl hover:shadow-primary/50 hover:scale-110 rounded-full group" style={{ background: 'linear-gradient(135deg, hsl(40, 55%, 60%) 0%, hsl(40, 50%, 50%) 100%)' }} aria-label="Open Life Coach Chat">
           <RiChat3Line size={22} className="group-hover:scale-110 transition-transform duration-300" />
           <div className="absolute inset-0 rounded-full bg-primary/20" style={{ animation: 'dotPing 3s ease-out infinite' }} />
         </button>
@@ -1876,10 +2528,11 @@ export default function Page() {
           <div className="fixed inset-0 bg-black/40 z-40 md:bg-black/20" onClick={() => setChatOpen(false)} />
         )}
 
-        <div className={`fixed top-0 right-0 h-full w-full md:w-[420px] bg-card border-l border-border z-50 flex flex-col transition-transform duration-300 ${chatOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-          <div className="flex items-center justify-between p-5 border-b border-border flex-shrink-0">
+        <div className={`fixed top-0 right-0 h-full w-full md:w-[420px] bg-card/95 backdrop-blur-xl border-l border-border z-50 flex flex-col transition-transform duration-300 ${chatOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+          <div className="flex items-center justify-between p-5 border-b border-border flex-shrink-0 relative">
+            <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center" style={{ boxShadow: '0 0 12px rgba(191,155,48,0.15)' }}>
                 <div className="w-4 h-4 rounded-full bg-primary/60" style={{ animation: 'orbPulse 2s ease-in-out infinite' }} />
               </div>
               <div>
